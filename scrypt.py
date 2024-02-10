@@ -31,7 +31,7 @@ def copy_dirs(src, dst):
 def encrypt():
     global password,files,filesStrip
     for x in range(len(files)):
-        print("Encrypting file",x+1,"of total",len(files),"files.")
+        print("Encrypting file",x+1,"of total",len(files),f"files. Filename: {filesStrip[x]}")
         command='scrypt enc --passphrase dev:stdin-once "{:0}" "{:1}{:2}.enc"'.format(files[x],destination,filesStrip[x])
         os.system(f"echo '{password}' | {command}")
     print()
@@ -41,18 +41,38 @@ def encrypt():
 def decrypt():
     global password,files,filesStrip
     for x in range(len(files)):
-        print("Decrypting file",x+1,"of total",len(files),"files.")
+        print("Decrypting file",x+1,"of total",len(files),f"files. Filename: {filesStrip[x]}")
         filesStrip[x]=filesStrip[x].replace(".enc","")
         command='scrypt dec --passphrase dev:stdin-once "{:0}" "{:1}{:2}"'.format(files[x],destination,filesStrip[x])
         os.system(f"echo '{password}' | {command}")
+    print()
     print("Decrypted",len(files),"files.")
  
+def get_password(encdec):
+    if encdec == 'enc':
+        prompt="Encryption password:"
+    else:
+        prompt="Decryption password:"
+    password=getpass(prompt=prompt) # Password
+    if encdec == 'enc':
+        conPassword=getpass(prompt='Confirm password:') # Confirm Password
+        if password!=conPassword:
+            print("Passwords do not match!")
+            exit()
+    try:
+        os.mkdir(destination) # Make a directory for encrypted files
+    except FileExistsError:
+        pass
+    copy_dirs(source, destination)
+    return password
     
 # Makes a list of all files in a given PATH directory
 files=[]
 for root,d_names,f_names in os.walk(source):
-	for f in f_names:
-		files.append(os.path.join(root, f))
+    for f in f_names:
+        if ".DS_Store" not in f:
+            files.append(os.path.join(root, f))
+
 filesStrip=[]
 for x in files:
     filesStrip.append(x.replace(source,""))
@@ -60,23 +80,13 @@ for x in files:
 # Encryption
 if encdec == 'enc':
     destination=source+"/scrypt_encrypted/"
-    password=getpass(prompt='Encryption password:') # Password
-    try:
-        os.mkdir(destination) # Make a directory for encrypted files
-    except FileExistsError:
-        pass
-    copy_dirs(source, destination)
+    password = get_password(encdec)
     encrypt()
 
 # Decryption
 elif encdec == 'dec':
     destination=source+"/scrypt_decrypted/"
-    password=getpass(prompt='Decryption password:') # Password
-    try:
-        os.mkdir(destination) # Make a directory for decrypted files
-    except FileExistsError:
-        pass
-    copy_dirs(source, destination)
+    password = get_password(encdec)
     decrypt()
 
 else:
